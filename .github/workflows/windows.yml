@@ -1,0 +1,73 @@
+name: Windows release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and test
+        run: |
+          npm ci
+          npm test
+
+      - name: Stamp unique release version
+        id: ver
+        shell: bash
+        run: node scripts/stamp-release-version.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Build Windows installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run build:win
+
+      - name: Confirm update metadata
+        shell: bash
+        run: |
+          ls -la release
+          test -f release/latest.yml
+          ls -la release/latest.yml release/Pocketplate-Setup-*.exe
+
+      - name: Add stable download name
+        shell: bash
+        run: |
+          set -euo pipefail
+          setup=$(ls release/Pocketplate-Setup-*.exe | head -n 1)
+          cp "$setup" release/Pocketplate-Setup.exe
+          ls -la release/*.exe release/latest.yml
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: Pocketplate ${{ steps.ver.outputs.version }}
+          draft: false
+          make_latest: true
+          fail_on_unmatched_files: true
+          files: |
+            release/Pocketplate-Setup-*.exe
+            release/Pocketplate-Setup.exe
+            release/latest.yml
+            release/*.blockmap
+          body: |
+            Windows build of **Pocketplate** (every push to `main` publishes a new version).
+
+            - [Pocketplate-Setup-${{ steps.ver.outputs.version }}.exe](https://github.com/Molten-Magnolia-3D/Tool-silhouette-organizor/releases/download/v${{ steps.ver.outputs.version }}/Pocketplate-Setup-${{ steps.ver.outputs.version }}.exe) — installer (recommended; auto-updates)
+            - [Always-latest Setup](https://github.com/Molten-Magnolia-3D/Tool-silhouette-organizor/releases/latest/download/Pocketplate-Setup.exe)
+
+            Installed Setup copies check GitHub Releases after launch, every 5 minutes, and when you come back to the window, then download in the background. Tap **Update now** or quit — it also installs on close.
+
+            Windows SmartScreen may warn because this build is unsigned. Choose **More info** → **Run anyway**.
