@@ -77,8 +77,10 @@ export function Preview3D({ tools, plate }: { tools: Tool[]; plate: PlateSetting
           else ctx.lineTo(px, py);
         });
         ctx.closePath();
-        const light = t.nx > 0 ? 0.72 : 0.42;
-        ctx.fillStyle = `rgba(196,101,45,${light})`;
+        const faceZ = (t.pts[0]!.z + t.pts[1]!.z + t.pts[2]!.z) / 3;
+        const recessed = faceZ < 0.15;
+        const light = recessed ? 0.28 : t.nx > 0 ? 0.78 : 0.48;
+        ctx.fillStyle = recessed ? `rgba(92,48,24,${light + 0.35})` : `rgba(196,101,45,${light})`;
         ctx.fill();
         ctx.strokeStyle = "rgba(28,20,16,0.18)";
         ctx.lineWidth = 0.4;
